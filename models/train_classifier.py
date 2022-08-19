@@ -1,14 +1,18 @@
 import sys
 
+import nltk
 nltk.download(['punkt', 'wordnet'])
 nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
 
+# import statements
 import pandas as pd
 import re
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from sqlalchemy import create_engine
+import pickle
 
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.metrics import confusion_matrix
