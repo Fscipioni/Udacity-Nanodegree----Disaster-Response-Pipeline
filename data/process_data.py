@@ -15,7 +15,19 @@ def load_data(messages_filepath, categories_filepath):
 
 def clean_data(df):
     
-    pass
+    # The df column "categories" contains in each row, 36 emergency categories seperated by a semicolon
+    
+    # create a dataframe of the 36 individual category columns 
+    categories = df.categories.str.split(";", expand = True)
+    
+    # select the first row of the categories dataframe
+    row = categories.iloc[0].tolist()
+    
+    # use this row to extract a list of new column names for categories.
+    category_colnames = [col.replace('-1', '').replace('-0', '') for col in row]
+    
+    # rename the columns of `categories`
+    categories.columns = category_colnames
 
 
 def save_data(df, database_filename):
