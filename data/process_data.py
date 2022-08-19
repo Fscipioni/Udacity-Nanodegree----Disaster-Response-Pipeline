@@ -71,8 +71,10 @@ def clean_data(df):
     
     # drop duplicates
     df = df.drop_duplicates()
+    
+    return df
 
-def save_data(df, database_filename):
+def save_data(df, database_filepath):
     
     """
     Save the clean dataset into an sqlite database
@@ -86,10 +88,10 @@ def save_data(df, database_filename):
     from sqlalchemy import create_engine
     
     # Create the engine with the SQLAlchemy library 
-    engine = create_engine('sqlite:///InsertDatabaseName.db')
+    engine = create_engine('sqlite:///' + database_filepath)
     
     # Load df in the database
-    df.to_sql('InsertTableName', engine, index=False)  
+    df.to_sql('DisasterResponse', engine, index=False)  
 
 
 def main():
