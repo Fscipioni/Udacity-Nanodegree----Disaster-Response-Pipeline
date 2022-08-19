@@ -3,7 +3,14 @@ import sys
 
 def load_data(messages_filepath, categories_filepath):
     
-    pass
+    # Load the message and categories .csv files in two Pandas Dataframes
+    messages = pd.read_csv(messages_filepath)
+    categories = pd.read_csv(categories_filepath)
+    
+    # Merge the two dataframes into one, by using the common column "id"
+    df = pd.merge(messages, categories, on='id', how='outer')
+    
+    return df
 
 
 def clean_data(df):
