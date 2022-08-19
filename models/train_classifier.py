@@ -1,9 +1,50 @@
 import sys
 
+nltk.download(['punkt', 'wordnet'])
+nltk.download('stopwords')
 
+import pandas as pd
+import re
+from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from sqlalchemy import create_engine
+
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.metrics import classification_report
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.model_selection import GridSearchCV
+
+class StartingVerbExtractor(BaseEstimator, TransformerMixin):
+
+    def starting_verb(self, text):
+        sentence_list = nltk.sent_tokenize(text)
+        for sentence in sentence_list:
+            pos_tags = nltk.pos_tag(tokenize(sentence))
+            first_word, first_tag = pos_tags[0]
+            if first_tag in ['VB', 'VBP'] or first_word == 'RT':
+                return True
+        return False
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, X):
+        X_tagged = pd.Series(X).apply(self.starting_verb)
+        return pd.DataFrame(X_tagged)
+    
 def load_data(database_filepath):
-    pass
+    engine = create_engine('sqlite:///DisasterResponse.db')
+    df = pd.read_sql_table('DisasterResponse', engine)
 
+    X = df.message.values
+    Y = df.iloc[:, 4:]
+    
+    return X, Y
 
 def tokenize(text):
     pass
