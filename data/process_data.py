@@ -1,4 +1,6 @@
 import sys
+import pandas as pd
+import numpy as np
 
 
 def load_data(messages_filepath, categories_filepath):
