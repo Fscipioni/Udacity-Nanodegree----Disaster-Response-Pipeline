@@ -71,7 +71,23 @@ def clean_data(df):
     df = df.drop_duplicates()
 
 def save_data(df, database_filename):
-    pass  
+    
+    """
+    Save the clean dataset into an sqlite database
+    
+    INPUT
+        df --> Pandas Dataframe to load in the database
+        database_filename --> name of the database
+        
+    """
+    
+    from sqlalchemy import create_engine
+    
+    # Create the engine with the SQLAlchemy library 
+    engine = create_engine('sqlite:///InsertDatabaseName.db')
+    
+    # Load df in the database
+    df.to_sql('InsertTableName', engine, index=False)  
 
 
 def main():
