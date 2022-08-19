@@ -26,15 +26,40 @@ from sklearn.multioutput import MultiOutputClassifier
 
    
 def load_data(database_filepath):
-    engine = create_engine('sqlite:///DisasterResponse.db')
-    df = pd.read_sql_table('DisasterResponse', engine)
-
-    X = df.message.values
-    Y = df.iloc[:, 4:]
     
-    return X, Y
+    """
+    Load the data from the database_filepath.
+    
+    INPUT
+        database_filepath --> The database containing the data
+    
+    OUTPUT
+        X --> Dataframe with the messages
+        Y --> Dataframe with the categories
+        category_names --> list of all categories
+    """
+    
+    # load the data from the database
+    engine = create_engine('sqlite:///' + database_filepath)
+    df = pd.read_sql_table('DisasterResponse', engine)
+    
+    #Create the dataframes with the messages and the categories
+    # Extract the list of all categories
+    X = df.message
+    Y = df.iloc[:, 4:]
+    category_names = list(df.columns[4:])
+    
+    return X, Y, category_names
 
 def tokenize(text):
+    
+    """
+    Tokenize the input text
+    
+    OUTPUT
+        lemm --> tokenized text
+    """
+    
     # Normalize text
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
                   
@@ -51,12 +76,22 @@ def tokenize(text):
 
 
 def build_model():
+    
+    """
+    Build and return the model 
+    """
+    
+    # Define the pipline:
+    #   CountVectorizer to apply the tokenize function to the text
+    #   TfidfTransformer to transform a count matrix to a normalized tf or tf-idf representation
+    #   MultiOutputClassifier(RandomForestClassifier()) to apply the random forest classifier to multiple target variables
+   
     pipeline = Pipeline([('vect', CountVectorizer(tokenizer = tokenize)), 
                  ('tfidf', TfidfTransformer()), 
                  ('clf', MultiOutputClassifier(RandomForestClassifier()))
                 ])
 
-
+    # Serch for the best parameters
     print('Searching for best parameters...')
     parameters = {'vect__ngram_range': ((1, 1), (1, 2))
         , 'vect__max_df': (0.5, 0.75, 1.0)
@@ -71,6 +106,16 @@ def build_model():
 
 def evaluate_model(model, X_test, Y_test, category_names):
     
+    """
+    Evaluate the model performance
+    
+    INPUT
+        model --> The model to evaluate
+        X_test, Y_test --> Datasets for testing the model
+        category_names --> list of all categories
+    
+    """
+    
     y_pred = model.predict(X_test)
     
     for i, col in enumerate(category_names):
@@ -80,6 +125,15 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 
 def save_model(model, model_filepath):
+             
+    """
+    Save the model as a pickel file.
+    
+    INPUT 
+        model --> the model to save
+        model_filepath --> the model file
+    """
+             
     with open (model_filepath, 'wb') as f:
     pickle.dump(model, f)
 
