@@ -33,6 +33,7 @@ The libraries used are are:
 - pickle
 - Flask
 - plotly
+- json
 
 
 ### List of Files<a name = "files"></a>
