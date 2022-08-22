@@ -1,99 +1,123 @@
-import json
-import plotly
+import sys
 import pandas as pd
-
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-
-from flask import Flask
-from flask import render_template, request, jsonify
-from plotly.graph_objs import Bar
-from sklearn.externals import joblib
-from sqlalchemy import create_engine
+import numpy as np
 
 
-app = Flask(__name__)
-
-def tokenize(text):
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
-
-    clean_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
-
-    return clean_tokens
-
-# load data
-engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-df = pd.read_sql_table('YourTableName', engine)
-
-# load model
-model = joblib.load("../models/your_model_name.pkl")
-
-
-# index webpage displays cool visuals and receives user input text for model
-@app.route('/')
-@app.route('/index')
-def index():
+def load_data(messages_filepath, categories_filepath):
     
-    # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
-    genre_counts = df.groupby('genre').count()['message']
-    genre_names = list(genre_counts.index)
+    """
+    Load two input csv files, load them in Pandas dataframes, and merge them in a single dataframe
     
-    # create visuals
-    # TODO: Below is an example - modify to create your own visuals
-    graphs = [
-        {
-            'data': [
-                Bar(
-                    x=genre_names,
-                    y=genre_counts
-                )
-            ],
-
-            'layout': {
-                'title': 'Distribution of Message Genres',
-                'yaxis': {
-                    'title': "Count"
-                },
-                'xaxis': {
-                    'title': "Genre"
-                }
-            }
-        }
-    ]
+    INPUT
+        messages_filepath --> The path to the 'message.csv' file
+        categories_filepath --> The path to the 'categories.csv' file
+        
+    OUTPUT
+        df --> Pandas Dataframe created by merging the dataframes from the 'message.csv' and 'categories.csv' files
+    """
     
-    # encode plotly graphs in JSON
-    ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
-    graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+    # Load the message and categories .csv files in two Pandas Dataframes
+    messages = pd.read_csv(messages_filepath)
+    categories = pd.read_csv(categories_filepath)
     
-    # render web page with plotly graphs
-    return render_template('master.html', ids=ids, graphJSON=graphJSON)
+    # Merge the two dataframes into one, by using the common column "id"
+    df = pd.merge(messages, categories, on='id', how='outer')
+    
+    return df
 
 
-# web page that handles user query and displays model results
-@app.route('/go')
-def go():
-    # save user input in query
-    query = request.args.get('query', '') 
+def clean_data(df):
+    
+    """
+    Take a Pandas Dataframe in input and performs data wrangling operations:
+        - Split hte dataframe's column 'categories' into separate category columns
+        - Convert category values to just numbers 0 or 1
+        - Replace categories column in df with new category columns
+        - Remove duplicates
+    
+    INPUT
+        df --> Pandas Dataframe
+        
+    OUTPUT 
+        df --> cleaned Pandas Dataframe
+    
+    """
+    
+    # The df column "categories" contains in each row, 36 emergency categories seperated by a semicolon
+    
+    # Created dataframe of the 36 individual category columns: 
+    categories = df.categories.str.split(";", expand = True)
+    
+    # Select the first row of the categories dataframe
+    # use this row to extract a list of new column names for categories.
+    # rename the columns of `categories`
+    row = categories.iloc[0].tolist()
+    category_colnames = [col.replace('-1', '').replace('-0', '') for col in row]
+    categories.columns = category_colnames
+    
+    # Iterate through the category columns in df to keep only the last character of each string (the 1 or 0).
+    for column in categories:
+        # set each value to be the last character of the string
+        categories[column] = categories[column].astype(str).str[-1]
+    
+        # convert column from string to numeric
+        categories[column] = categories[column].astype(int)
+        
+    # Drop the categories column from the df dataframe since it is no longer needed.
+    df.drop('categories', inplace=True, axis=1)
+    
+    # concatenate the original dataframe with the new `categories` dataframe
+    df = pd.concat([df,categories], axis=1)
+    
+    # drop duplicates
+    df = df.drop_duplicates()
+    
+    return df
 
-    # use model to predict classification for query
-    classification_labels = model.predict([query])[0]
-    classification_results = dict(zip(df.columns[4:], classification_labels))
-
-    # This will render the go.html Please see that file. 
-    return render_template(
-        'go.html',
-        query=query,
-        classification_result=classification_results
-    )
+def save_data(df, database_filepath):
+    
+    """
+    Save the clean dataset into an sqlite database
+    
+    INPUT
+        df --> Pandas Dataframe to load in the database
+        database_filename --> name of the database
+        
+    """
+    
+    from sqlalchemy import create_engine
+    
+    # Create the engine with the SQLAlchemy library 
+    engine = create_engine('sqlite:///' + database_filepath)
+    
+    # Load df in the database
+    df.to_sql('DisasterResponse', engine, index=False)  
 
 
 def main():
-    app.run(host='0.0.0.0', port=3000, debug=True)
+    if len(sys.argv) == 4:
+
+        messages_filepath, categories_filepath, database_filepath = sys.argv[1:]
+
+        print('Loading data...\n    MESSAGES: {}\n    CATEGORIES: {}'
+              .format(messages_filepath, categories_filepath))
+        df = load_data(messages_filepath, categories_filepath)
+
+        print('Cleaning data...')
+        df = clean_data(df)
+        
+        print('Saving data...\n    DATABASE: {}'.format(database_filepath))
+        save_data(df, database_filepath)
+        
+        print('Cleaned data saved to database!')
+    
+    else:
+        print('Please provide the filepaths of the messages and categories '\
+              'datasets as the first and second argument respectively, as '\
+              'well as the filepath of the database to save the cleaned data '\
+              'to as the third argument. \n\nExample: python process_data.py '\
+              'disaster_messages.csv disaster_categories.csv '\
+              'DisasterResponse.db')
 
 
 if __name__ == '__main__':
